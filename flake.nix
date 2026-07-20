@@ -42,23 +42,12 @@
         modules = commonModules;
       };
 
-      # VM起動確認専用(手順書0.3参照)。system.build.vmは仮想ディスクを自動生成するが、
-      # diskoが配線するswapDevices/fileSystems(/home等、実機のLUKSデバイス参照)はVM内に
-      # 存在しないため、素の設定のままだと起動がそこで無期限に停止する(disko/VMの既知の相互作用)。
-      # disko.enableConfig=false(disko公式のVMテスト向けオプション)でその自動配線を止め、
-      # VM自身のディスクのみで完結させる。本番用nixos-desktopには一切影響しない。
-      # メモリ/コース数はデフォルト(1024MB・1コア)だとPlasma6+Chromeがもたつくため引き上げる
-      # (ホスト実機はRyzen 7 5700X 8C/16T・RAM32GBのため余裕あり)。
-      nixosConfigurations.nixos-desktop-vmtest = nixpkgs.lib.nixosSystem {
-        inherit system;
-        modules = commonModules ++ [
-          {
-            disko.enableConfig = false;
-            virtualisation.memorySize = 8192;
-            virtualisation.cores = 6;
-          }
-        ];
-      };
+      # 2026-07-20にVM起動確認専用としてnixosConfigurations.nixos-desktop-vmtestを追加し、
+      # SDDM→自動ログイン→Plasma6→Chrome起動まで確認済み(手順書0.3参照)。この検証はArch上での
+      # 事前確認が目的で既に完了しており、以降の実ディスク検証はdisko dry-run(手順書2.5)が担う。
+      # 2026-07-21、nix flake checkが本設定を(disko.enableConfig=falseでfileSystems未定義のまま)
+      # config.system.build.toplevelとして評価しようとして失敗することが判明したため、
+      # 役目を終えた本設定はnixosConfigurationsから削除した(vmビルドが必要になれば都度これを復元する)。
 
       packages.${system} = {
         # diskoのflakeはapps出力を持たずpackagesのみ(2026-07-20実機確認済み)。
