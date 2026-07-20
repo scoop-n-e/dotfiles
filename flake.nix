@@ -22,20 +22,40 @@
         config.allowUnfreePredicate = pkg:
           builtins.elem (nixpkgs.lib.getName pkg) [ "claude-code" ];
       };
+
+      commonModules = [
+        disko.nixosModules.disko
+        home-manager.nixosModules.home-manager
+        ./disk-config.nix
+        ./hardware-configuration.nix
+        ./configuration.nix
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.users.scoop = import ./home.nix;
+        }
+      ];
     in
     {
       nixosConfigurations.nixos-desktop = nixpkgs.lib.nixosSystem {
         inherit system;
-        modules = [
-          disko.nixosModules.disko
-          home-manager.nixosModules.home-manager
-          ./disk-config.nix
-          ./hardware-configuration.nix
-          ./configuration.nix
+        modules = commonModules;
+      };
+
+      # VM起動確認専用(手順書0.3参照)。system.build.vmは仮想ディスクを自動生成するが、
+      # diskoが配線するswapDevices/fileSystems(/home等、実機のLUKSデバイス参照)はVM内に
+      # 存在しないため、素の設定のままだと起動がそこで無期限に停止する(disko/VMの既知の相互作用)。
+      # disko.enableConfig=false(disko公式のVMテスト向けオプション)でその自動配線を止め、
+      # VM自身のディスクのみで完結させる。本番用nixos-desktopには一切影響しない。
+      # メモリ/コース数はデフォルト(1024MB・1コア)だとPlasma6+Chromeがもたつくため引き上げる
+      # (ホスト実機はRyzen 7 5700X 8C/16T・RAM32GBのため余裕あり)。
+      nixosConfigurations.nixos-desktop-vmtest = nixpkgs.lib.nixosSystem {
+        inherit system;
+        modules = commonModules ++ [
           {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.users.scoop = import ./home.nix;
+            disko.enableConfig = false;
+            virtualisation.memorySize = 8192;
+            virtualisation.cores = 6;
           }
         ];
       };
